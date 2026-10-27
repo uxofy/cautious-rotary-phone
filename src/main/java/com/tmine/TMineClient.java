@@ -24,12 +24,10 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class TMineClient implements ClientModInitializer {
 
-    // ---- settings ----
-    private static final float MIN_COOLDOWN = 0.92f;   // attack charge 0..1
-    private static final int MIN_DELAY_TICKS = 0;      // random delay after aiming at a new target
+    private static final float MIN_COOLDOWN = 0.92f;
+    private static final int MIN_DELAY_TICKS = 0;
     private static final int MAX_DELAY_TICKS = 2;
     private static final boolean ONLY_PLAYERS = false;
-
 
     private static KeyBinding toggleKey;
     private static boolean enabled = false;
@@ -54,11 +52,11 @@ public class TMineClient implements ClientModInitializer {
             msg(mc, "tmine: " + (enabled ? "ON" : "OFF"));
         }
 
-        if (player == null || mc.world == null || mc.interactionManager == null) return;
+        if (player == null  mc.world == null  mc.interactionManager == null) return;
 
         if (!enabled) return;
         if (mc.currentScreen != null) return;
-        if (player.isUsingItem()) return; // eating/drinking/blocking in ANY hand
+        if (player.isUsingItem()) return;
 
         HitResult hit = mc.crosshairTarget;
         if (!(hit instanceof EntityHitResult ehr)) {
@@ -68,7 +66,7 @@ public class TMineClient implements ClientModInitializer {
         }
 
         Entity target = ehr.getEntity();
-        if (!(target instanceof LivingEntity living) || !living.isAlive() || living == player) return;
+        if (!(target instanceof LivingEntity living)  !living.isAlive()  living == player) return;
         if (ONLY_PLAYERS && !(target instanceof PlayerEntity)) return;
 
         if (target != lastTarget) {
@@ -81,15 +79,13 @@ public class TMineClient implements ClientModInitializer {
         }
 
         ItemStack held = player.getMainHandStack();
-        if (!(held.isIn(ItemTags.SWORDS) || held.isIn(ItemTags.AXES))) return; // mace/other: never attack
+        if (!(held.isIn(ItemTags.SWORDS) || held.isIn(ItemTags.AXES))) return;
         if (!canCrit(player)) return;
-        // getAttackCooldownProgress already accounts for each weapon's attack speed
         if (player.getAttackCooldownProgress(0.5f) < MIN_COOLDOWN) return;
 
         mc.interactionManager.attackEntity(player, target);
         player.swingHand(Hand.MAIN_HAND);
         delayLeft = rnd();
-
     }
 
     private static boolean canCrit(ClientPlayerEntity p) {
