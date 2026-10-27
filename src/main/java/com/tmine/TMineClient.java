@@ -52,8 +52,9 @@ public class TMineClient implements ClientModInitializer {
             msg(mc, "tmine: " + (enabled ? "ON" : "OFF"));
         }
 
-        if (player == null  mc.world == null  mc.interactionManager == null) return;
-
+        if (player == null) return;
+        if (mc.world == null) return;
+        if (mc.interactionManager == null) return;
         if (!enabled) return;
         if (mc.currentScreen != null) return;
         if (player.isUsingItem()) return;
@@ -66,8 +67,12 @@ public class TMineClient implements ClientModInitializer {
         }
 
         Entity target = ehr.getEntity();
-        if (!(target instanceof LivingEntity living)  !living.isAlive()  living == player) return;
-        if (ONLY_PLAYERS && !(target instanceof PlayerEntity)) return;
+        if (!(target instanceof LivingEntity living)) return;
+        if (!living.isAlive()) return;
+        if (living == player) return;
+        if (ONLY_PLAYERS) {
+            if (!(target instanceof PlayerEntity)) return;
+        }
 
         if (target != lastTarget) {
             lastTarget = target;
@@ -79,7 +84,11 @@ public class TMineClient implements ClientModInitializer {
         }
 
         ItemStack held = player.getMainHandStack();
-        if (!(held.isIn(ItemTags.SWORDS) || held.isIn(ItemTags.AXES))) return;
+        boolean sword = held.isIn(ItemTags.SWORDS);
+        boolean axe = held.isIn(ItemTags.AXES);
+        if (!sword) {
+            if (!axe) return;
+        }
         if (!canCrit(player)) return;
         if (player.getAttackCooldownProgress(0.5f) < MIN_COOLDOWN) return;
 
@@ -89,14 +98,15 @@ public class TMineClient implements ClientModInitializer {
     }
 
     private static boolean canCrit(ClientPlayerEntity p) {
-        return p.fallDistance > 0.0f
-                && p.getVelocity().y < 0.0
-                && !p.isOnGround()
-                && !p.isClimbing()
-                && !p.isTouchingWater()
-                && !p.hasVehicle()
-                && !p.isSprinting()
-                && !p.hasStatusEffect(StatusEffects.BLINDNESS);
+        if (p.fallDistance <= 0.0f) return false;
+        if (p.getVelocity().y >= 0.0) return false;
+        if (p.isOnGround()) return false;
+        if (p.isClimbing()) return false;
+        if (p.isTouchingWater()) return false;
+        if (p.hasVehicle()) return false;
+        if (p.isSprinting()) return false;
+        if (p.hasStatusEffect(StatusEffects.BLINDNESS)) return false;
+        return true;
     }
 
     private static int rnd() {
