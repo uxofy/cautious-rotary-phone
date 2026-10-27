@@ -1,0 +1,113 @@
+package com.tmine;
+
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.text.Text;
+import net.minecraft.util.Hand;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.hit.HitResult;
+import org.lwjgl.glfw.GLFW;
+
+import java.util.concurrent.ThreadLocalRandom;
+
+public class TMineClient implements ClientModInitializer {
+
+    // ---- settings ----
+    private static final float MIN_COOLDOWN = 0.92f;   // attack charge 0..1
+    private static final int MIN_DELAY_TICKS = 0;      // random delay after aiming at a new target
+    private static final int MAX_DELAY_TICKS = 2;
+    private static final boolean ONLY_PLAYERS = false;
+
+
+    private static KeyBinding toggleKey;
+    private static boolean enabled = false;
+
+    private static int delayLeft = -1;
+    private static Entity lastTarget = null;
+
+    @Override
+    public void onInitializeClient() {
+        KeyBinding.Category cat = KeyBinding.Category.create(Identifier.of("tmine", "main"));
+        toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.tmine.toggle", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_R, cat));
+
+        ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+    }
+
+    private void tick(MinecraftClient mc) {
+        ClientPlayerEntity player = mc.player;
+
+        while (toggleKey.wasPressed()) {
+            enabled = !enabled;
+            msg(mc, "tmine: " + (enabled ? "ON" : "OFF"));
+        }
+
+        if (player == null || mc.world == null || mc.interactionManager == null) return;
+
+        if (!enabled) return;
+        if (mc.currentScreen != null) return;
+        if (player.isUsingItem()) return; // eating/drinking/blocking in ANY hand
+
+        HitResult hit = mc.crosshairTarget;
+        if (!(hit instanceof EntityHitResult ehr)) {
+            lastTarget = null;
+            delayLeft = -1;
+            return;
+        }
+
+        Entity target = ehr.getEntity();
+        if (!(target instanceof LivingEntity living) || !living.isAlive() || living == player) return;
+        if (ONLY_PLAYERS && !(target instanceof PlayerEntity)) return;
+
+        if (target != lastTarget) {
+            lastTarget = target;
+            delayLeft = rnd();
+        }
+        if (delayLeft > 0) {
+            delayLeft--;
+            return;
+        }
+
+        ItemStack held = player.getMainHandStack();
+        if (!(held.isIn(ItemTags.SWORDS) || held.isIn(ItemTags.AXES))) return; // mace/other: never attack
+        if (!canCrit(player)) return;
+        // getAttackCooldownProgress already accounts for each weapon's attack speed
+        if (player.getAttackCooldownProgress(0.5f) < MIN_COOLDOWN) return;
+
+        mc.interactionManager.attackEntity(player, target);
+        player.swingHand(Hand.MAIN_HAND);
+        delayLeft = rnd();
+
+    }
+
+    private static boolean canCrit(ClientPlayerEntity p) {
+        return p.fallDistance > 0.0f
+                && p.getVelocity().y < 0.0
+                && !p.isOnGround()
+                && !p.isClimbing()
+                && !p.isTouchingWater()
+                && !p.hasVehicle()
+                && !p.isSprinting()
+                && !p.hasStatusEffect(StatusEffects.BLINDNESS);
+    }
+
+    private static int rnd() {
+        return ThreadLocalRandom.current().nextInt(MIN_DELAY_TICKS, MAX_DELAY_TICKS + 1);
+    }
+
+    private static void msg(MinecraftClient mc, String s) {
+        if (mc.player != null) mc.player.sendMessage(Text.literal(s), true);
+    }
+}

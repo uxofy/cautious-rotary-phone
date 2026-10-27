@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "tmine",
+  "version": "${version}",
+  "name": "tmine",
+  "description": "Triggerbot for sword and axe crits.",
+  "authors": ["you"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.tmine.TMineClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
